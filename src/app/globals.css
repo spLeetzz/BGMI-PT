@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #09090b;
+  --color-card: #121215;
+  --color-card-hover: #18181b;
+  --color-border: #27272a;
+  --color-primary: #f97316;
+  --color-primary-dim: rgba(249, 115, 22, 0.15);
+  --color-text: #f4f4f5;
+  --color-muted: #71717a;
+  --color-muted-foreground: #a1a1aa;
+}
+
+:root {
+  color-scheme: dark;
+  --bg: #09090b;
+  --surface: #121215;
+  --border: #27272a;
+  --accent: #f97316;
+  --accent-dim: rgba(249, 115, 22, 0.15);
+  --text: #f4f4f5;
+  --muted: #8e8e9f;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+}
+
+/* Custom premium scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
+/* Custom premium input/select focus styles */
+input[type="text"],
+input[type="number"],
+input[type="file"],
+select,
+textarea {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.15);
+}
+
+/* Glassmorphism utility card */
+.glass-card {
+  background: rgba(18, 18, 21, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(39, 39, 42, 0.5);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+}
+
+/* Table styles */
+.premium-table th {
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.premium-table tr:hover {
+  background-color: rgba(255, 255, 255, 0.015);
+}
