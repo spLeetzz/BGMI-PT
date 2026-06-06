@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { tournaments, teams, players } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { apiError, apiResponse } from "@/lib/utils";
 
 type Params = { params: Promise<{ slug: string }> };
@@ -21,31 +21,17 @@ export async function GET(_req: Request, { params }: Params) {
       .from(teams)
       .where(eq(teams.tournamentId, tournament.id));
 
-    const playerRows =
-      teamRows.length > 0
-        ? await db
-            .select()
-            .from(players)
-            .where(
-              // get all players for all teams in this tournament
-              // using in-list manually since no inArray shorthand here
-              eq(players.teamId, teamRows[0].id) // placeholder - done below
-            )
-        : [];
+    const teamIds = teamRows.map((t) => t.id);
+    const playerRows = teamIds.length > 0
+      ? await db
+          .select()
+          .from(players)
+          .where(inArray(players.teamId, teamIds))
+      : [];
 
-    // fetch players for all teams
-    const allPlayers =
-      teamRows.length > 0
-        ? await Promise.all(
-            teamRows.map((t) =>
-              db.select().from(players).where(eq(players.teamId, t.id))
-            )
-          )
-        : [];
-
-    const teamsWithPlayers = teamRows.map((t, i) => ({
+    const teamsWithPlayers = teamRows.map((t) => ({
       ...t,
-      players: allPlayers[i] ?? [],
+      players: playerRows.filter((p) => p.teamId === t.id),
     }));
 
     return apiResponse({ ...tournament, teams: teamsWithPlayers });

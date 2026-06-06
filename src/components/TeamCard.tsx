@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 type Player = { id: number; ign: string; slot: number; kills: number };
 type Team = { id: number; name: string; teamIdCustom: string | null; slot: number };
@@ -16,7 +16,7 @@ type Props = {
 
 export default function TeamCard({ team, players: initialPlayers, matchId, existingResult, isAdmin }: Props) {
   const [open, setOpen] = useState(false);
-  const [position, setPosition] = useState(existingResult?.position?.toString() ?? "");
+  const [position, setPosition] = useState(existingResult?.position?.toString() ?? "0");
   const [playerKills, setPlayerKills] = useState<Record<number, string>>(
     Object.fromEntries(initialPlayers.map((p) => [p.id, p.kills.toString()]))
   );
@@ -33,9 +33,12 @@ export default function TeamCard({ team, players: initialPlayers, matchId, exist
   const [addingPlayer, setAddingPlayer] = useState(false);
   const [newIgn, setNewIgn] = useState("");
 
-  async function handleSave() {
+  // Refs for tracking changes and initial mount
+  const isMounted = useRef(false);
+
+  async function handleSave(currentPos = position, currentKills = playerKills) {
     if (!isAdmin) return;
-    if (!position || isNaN(parseInt(position))) {
+    if (currentPos === "" || isNaN(parseInt(currentPos))) {
       setError("Enter a valid position.");
       return;
     }
@@ -48,10 +51,10 @@ export default function TeamCard({ team, players: initialPlayers, matchId, exist
         body: JSON.stringify({
           match_id: matchId,
           team_id: team.id,
-          position: parseInt(position),
+          position: parseInt(currentPos),
           kills_per_player: players.map((p) => ({
             player_id: p.id,
-            kills: parseInt(playerKills[p.id] ?? "0") || 0,
+            kills: parseInt(currentKills[p.id] ?? "0") || 0,
           })),
         }),
       });
@@ -67,6 +70,22 @@ export default function TeamCard({ team, players: initialPlayers, matchId, exist
       setSaving(false);
     }
   }
+
+  // Debounced auto-save effect
+  useEffect(() => {
+    if (!isAdmin) return;
+    if (!isMounted.current) {
+      isMounted.current = true;
+      return;
+    }
+
+    setSaved(false);
+    const delayDebounceFn = setTimeout(() => {
+      handleSave(position, playerKills);
+    }, 600);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [position, playerKills, isAdmin]);
 
   async function handleEditIgnSave(playerId: number) {
     if (!isAdmin || !editIgnValue.trim()) return;
@@ -108,13 +127,12 @@ export default function TeamCard({ team, players: initialPlayers, matchId, exist
 
   return (
     <div
-      className={`rounded-2xl border transition-all duration-200 shadow-sm overflow-hidden ${
-        saved
+      className={`rounded-2xl border transition-all duration-200 shadow-sm overflow-hidden ${saved && position !== "0"
           ? isChicken
             ? "border-yellow-500/50 bg-yellow-500/[0.02] shadow-yellow-500/5"
             : "border-primary/40 bg-primary/[0.01]"
           : "border-border bg-card/60"
-      }`}
+        }`}
     >
       <button
         onClick={() => setOpen((v) => !v)}
@@ -134,13 +152,12 @@ export default function TeamCard({ team, players: initialPlayers, matchId, exist
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {saved && (
+          {position !== "0" && (
             <span
-              className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border ${
-                isChicken
+              className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border ${isChicken
                   ? "bg-yellow-500/10 border-yellow-500/20 text-yellow-500"
                   : "bg-primary/10 border-primary/20 text-primary"
-              }`}
+                }`}
             >
               {isChicken ? "🍗 Chicken Winner" : `Position #${position}`}
             </span>
@@ -154,32 +171,54 @@ export default function TeamCard({ team, players: initialPlayers, matchId, exist
       {open && (
         <div className="px-5 pb-5 border-t border-border/80 bg-background/25 flex flex-col gap-5 pt-4">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-muted">
-                Finish Position
-              </label>
+            <div className="flex flex-col gap-1.5 w-full sm:max-w-xs">
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted">
+                  Position
+                </label>
+                <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-lg font-mono">
+                  {position && position !== "0" ? `#${position}` : "Unset (0)"}
+                </span>
+              </div>
               {isAdmin ? (
-                <input
-                  type="number"
-                  min={1}
-                  max={99}
-                  value={position}
-                  onChange={(e) => {
-                    setPosition(e.target.value);
-                    setSaved(false);
-                  }}
-                  className="w-28 px-3.5 py-2 rounded-xl border border-border text-sm bg-background/50 focus:bg-background font-mono font-bold"
-                  placeholder="e.g. 1"
-                />
+                <div className="flex items-center gap-2 mt-1 w-full">
+                  <span className="text-xs text-muted/60 font-mono">0</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="30"
+                    step="1"
+                    value={position}
+                    onChange={(e) => {
+                      setPosition(e.target.value);
+                    }}
+                    className="w-full h-1.5 bg-border rounded-lg appearance-none cursor-pointer accent-primary"
+                  />
+                  <span className="text-xs text-muted/60 font-mono">30</span>
+                </div>
               ) : (
-                <span className="text-sm font-mono font-bold text-foreground bg-surface px-3 py-1.5 rounded-lg border border-border">
-                  {position ? `#${position}` : "Not Played"}
+                <span className="text-sm font-mono font-bold text-foreground bg-surface px-3 py-1.5 rounded-lg border border-border w-fit">
+                  {position && position !== "0" ? `#${position}` : "Not Played"}
                 </span>
               )}
             </div>
 
-            <div className="text-xs text-muted font-medium">
-              Players count: <span className="text-foreground font-bold">{players.length}</span> / 10
+            <div className="flex items-center gap-4">
+              <div className="text-xs text-muted font-medium">
+                Players: <span className="text-foreground font-bold">{players.length}</span> / 10
+              </div>
+
+              {isAdmin && (
+                <div className="text-xs font-semibold">
+                  {saving ? (
+                    <span className="text-yellow-500 animate-pulse flex items-center gap-1">⏳ Saving...</span>
+                  ) : saved ? (
+                    <span className="text-green-500 flex items-center gap-1">✓ Saved</span>
+                  ) : (
+                    <span className="text-muted/60">Waiting to save...</span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -191,7 +230,7 @@ export default function TeamCard({ team, players: initialPlayers, matchId, exist
               {players.map((p) => (
                 <div
                   key={p.id}
-                  className="flex items-center justify-between p-3 rounded-xl border border-border bg-background/30"
+                  className="flex flex-col gap-2 p-3.5 rounded-xl border border-border bg-background/30 justify-between"
                 >
                   {isAdmin && editingPlayer === p.id ? (
                     <div className="flex gap-2 w-full">
@@ -220,41 +259,49 @@ export default function TeamCard({ team, players: initialPlayers, matchId, exist
                     </div>
                   ) : (
                     <>
-                      <div className="flex items-center gap-2 max-w-[60%]">
-                        <span className="text-xs font-semibold text-foreground truncate" title={p.ign}>
-                          {p.ign}
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-2 max-w-[70%]">
+                          <span className="text-xs font-semibold text-foreground truncate" title={p.ign}>
+                            {p.ign}
+                          </span>
+                          {isAdmin && (
+                            <button
+                              onClick={() => {
+                                setEditingPlayer(p.id);
+                                setEditIgnValue(p.ign);
+                              }}
+                              className="text-[10px] text-muted hover:text-primary transition-colors"
+                            >
+                              ✏️
+                            </button>
+                          )}
+                        </div>
+                        <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                          {playerKills[p.id] ?? "0"} kill{playerKills[p.id] !== "1" ? "s" : ""}
                         </span>
-                        {isAdmin && (
-                          <button
-                            onClick={() => {
-                              setEditingPlayer(p.id);
-                              setEditIgnValue(p.ign);
-                            }}
-                            className="text-[10px] text-muted hover:text-primary transition-colors"
-                          >
-                            ✏️
-                          </button>
-                        )}
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted">
-                          Kills
-                        </label>
+                      <div className="flex items-center gap-2 w-full mt-1">
                         {isAdmin ? (
-                          <input
-                            type="number"
-                            min={0}
-                            value={playerKills[p.id] ?? "0"}
-                            onChange={(e) => {
-                              setPlayerKills((prev) => ({ ...prev, [p.id]: e.target.value }));
-                              setSaved(false);
-                            }}
-                            className="w-14 px-2 py-1 rounded-lg border border-border text-xs bg-background/50 text-center font-mono font-bold focus:bg-background"
-                          />
+                          <>
+                            <span className="text-[10px] text-muted/60 font-mono">0</span>
+                            <input
+                              type="range"
+                              min="0"
+                              max="30"
+                              step="1"
+                              value={playerKills[p.id] ?? "0"}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setPlayerKills((prev) => ({ ...prev, [p.id]: val }));
+                              }}
+                              className="w-full h-1 bg-border rounded-lg appearance-none cursor-pointer accent-primary"
+                            />
+                            <span className="text-[10px] text-muted/60 font-mono">30</span>
+                          </>
                         ) : (
                           <span className="text-xs font-mono font-bold text-foreground bg-surface/80 border border-border/40 px-2.5 py-0.5 rounded-lg">
-                            {playerKills[p.id] ?? 0}
+                            {playerKills[p.id] ?? 0} kills
                           </span>
                         )}
                       </div>
@@ -305,16 +352,6 @@ export default function TeamCard({ team, players: initialPlayers, matchId, exist
           </div>
 
           {error && <p className="text-xs text-red-500 font-semibold">{error}</p>}
-
-          {isAdmin && (
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary-dim transition-all hover:-translate-y-0.5 duration-200 disabled:opacity-50 w-fit"
-            >
-              {saving ? "Saving..." : "Save Match Results"}
-            </button>
-          )}
         </div>
       )}
     </div>

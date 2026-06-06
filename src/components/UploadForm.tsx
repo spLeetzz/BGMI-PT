@@ -9,6 +9,7 @@ type Props = { tournamentId: number };
 export default function UploadForm({ tournamentId }: Props) {
   const [result, setResult] = useState<{ success?: boolean; inserted?: number; errors?: string[]; error?: string } | null>(null);
   const [pending, startTransition] = useTransition();
+  const [fileName, setFileName] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -18,7 +19,10 @@ export default function UploadForm({ tournamentId }: Props) {
     startTransition(async () => {
       const res = await uploadTeams(formData);
       setResult(res);
-      if (res.success) formRef.current?.reset();
+      if (res.success) {
+        formRef.current?.reset();
+        setFileName(null);
+      }
     });
   }
 
@@ -43,19 +47,30 @@ export default function UploadForm({ tournamentId }: Props) {
           <div className="flex items-center justify-center w-full">
             <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border rounded-xl cursor-pointer bg-background/50 hover:bg-background hover:border-primary/50 transition-all duration-200">
               <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                <span className="text-2xl mb-2">📁</span>
-                <p className="text-xs text-muted mb-1 font-medium">
-                  <span className="text-primary font-semibold">Click to upload</span> or drag and drop
-                </p>
-                <p className="text-[10px] text-muted/60">CSV file format only</p>
+                <span className="text-2xl mb-2">{fileName ? "📄" : "📁"}</span>
+                {fileName ? (
+                  <p className="text-xs font-semibold text-primary truncate max-w-[200px]" title={fileName}>
+                    {fileName}
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-xs text-muted mb-1 font-medium">
+                      <span className="text-primary font-semibold">Click to upload</span> or drag and drop
+                    </p>
+                    <p className="text-[10px] text-muted/60">CSV file format only</p>
+                  </>
+                )}
               </div>
               <input
                 name="csv"
                 type="file"
-                accept=".csv"
+                accept=".csv,text/csv"
                 required
                 className="hidden"
-                onChange={() => setResult(null)}
+                onChange={(e) => {
+                  setResult(null);
+                  setFileName(e.target.files?.[0]?.name ?? null);
+                }}
               />
             </label>
           </div>
@@ -64,12 +79,12 @@ export default function UploadForm({ tournamentId }: Props) {
         <div className="flex items-center justify-between gap-4">
           <button
             type="submit"
-            disabled={pending}
-            className="px-5 py-2.5 rounded-xl font-semibold text-xs bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary-dim transition-all hover:-translate-y-0.5 duration-200 disabled:opacity-50"
+            disabled={pending || !fileName}
+            className="px-5 py-2.5 rounded-xl font-semibold text-xs bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary-dim transition-all hover:-translate-y-0.5 duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {pending ? "Processing..." : "Import CSV Roster"}
           </button>
-          
+
           <button
             type="button"
             onClick={handleDownloadTemplate}
@@ -81,23 +96,24 @@ export default function UploadForm({ tournamentId }: Props) {
       </form>
 
       {result && (
-        <div className="mt-2 text-xs border border-border/80 rounded-xl p-4 bg-background/30">
+        <div className={`text-xs border rounded-xl p-4 ${result.success ? "border-green-500/30 bg-green-500/5" : "border-red-500/30 bg-red-500/5"}`}>
           {result.error && (
-            <div className="flex items-center gap-2 text-red-500 font-semibold">
-              <span>❌</span> {result.error}
+            <div className="flex items-start gap-2 text-red-400 font-semibold">
+              <span className="shrink-0">❌</span>
+              <span>{result.error}</span>
             </div>
           )}
           {result.inserted != null && result.success && (
-            <div className="flex items-center gap-2 text-green-500 font-semibold mb-2">
-              <span>✅</span> Successfully imported {result.inserted} teams!
+            <div className="flex items-center gap-2 text-green-400 font-semibold mb-2">
+              <span>✅</span> Successfully imported {result.inserted} team{result.inserted !== 1 ? "s" : ""}!
             </div>
           )}
           {result.errors && result.errors.length > 0 && (
             <div className="flex flex-col gap-1.5 mt-2">
-              <p className="font-semibold text-red-400">Import Warnings:</p>
+              <p className="font-semibold text-yellow-400">Row warnings ({result.errors.length}):</p>
               <ul className="max-h-36 overflow-y-auto space-y-1 pr-2">
                 {result.errors.map((e, i) => (
-                  <li key={i} className="text-red-400/80 font-mono list-disc list-inside">
+                  <li key={i} className="text-yellow-400/80 font-mono list-disc list-inside">
                     {e}
                   </li>
                 ))}

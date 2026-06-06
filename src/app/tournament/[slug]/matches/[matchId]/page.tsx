@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { matches, teams, players, matchResults, playerKills, tournaments } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import TeamCard from "@/components/TeamCard";
 import Link from "next/link";
@@ -33,10 +33,17 @@ export default async function MatchResultsPage({ params }: Props) {
     .where(eq(teams.tournamentId, tournament.id))
     .orderBy(teams.slot);
 
-  const allPlayers = await Promise.all(
-    teamList.map((t) =>
-      db.select().from(players).where(eq(players.teamId, t.id)).orderBy(players.slot)
-    )
+  const teamIds = teamList.map((t) => t.id);
+  const playersList = teamIds.length > 0
+    ? await db
+        .select()
+        .from(players)
+        .where(inArray(players.teamId, teamIds))
+        .orderBy(players.slot)
+    : [];
+
+  const allPlayers = teamList.map((t) =>
+    playersList.filter((p) => p.teamId === t.id)
   );
 
   const existingResults = await db

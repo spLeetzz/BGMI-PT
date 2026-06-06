@@ -44,17 +44,17 @@ export default async function ExportPage({ params }: Props) {
           .where(inArray(players.teamId, teamIds))
       : [];
 
-  const allResults = await Promise.all(
-    matchList.map((m) =>
-      db.select().from(matchResults).where(eq(matchResults.matchId, m.id))
-    )
-  );
+  const matchIds = matchList.map((m) => m.id);
+  const flatResults = matchIds.length > 0
+    ? await db.select().from(matchResults).where(inArray(matchResults.matchId, matchIds))
+    : [];
 
-  const allKills = await Promise.all(
-    matchList.map((m) =>
-      db.select().from(playerKills).where(eq(playerKills.matchId, m.id))
-    )
-  );
+  const flatKills = matchIds.length > 0
+    ? await db.select().from(playerKills).where(inArray(playerKills.matchId, matchIds))
+    : [];
+
+  const allResults = matchList.map((m) => flatResults.filter((r) => r.matchId === m.id));
+  const allKills = matchList.map((m) => flatKills.filter((k) => k.matchId === m.id));
 
   return (
     <div className="max-w-2xl mx-auto px-8 py-10 flex flex-col gap-8">

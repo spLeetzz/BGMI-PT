@@ -8,7 +8,7 @@ export default function Home() {
     <div className="relative min-h-[calc(100vh-4rem)] flex flex-col justify-between overflow-hidden">
       {/* Background glow effects */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
-      
+
       <div className="max-w-5xl mx-auto px-6 pt-20 pb-16 w-full flex-1 flex flex-col justify-center">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/20 bg-primary/5 text-primary text-xs font-semibold mb-6 animate-pulse">
@@ -31,8 +31,14 @@ export default function Home() {
               Create Tournament
             </Link>
             <Link
-              href="/how-it-works"
+              href="/tournaments"
               className="px-6 py-3 rounded-xl border border-border bg-surface/50 hover:bg-surface text-foreground font-semibold transition-all hover:-translate-y-0.5"
+            >
+              🏆 Browse All Tournaments
+            </Link>
+            <Link
+              href="/how-it-works"
+              className="px-6 py-3 rounded-xl border border-border/50 bg-transparent hover:bg-surface/30 text-muted hover:text-foreground font-semibold transition-all hover:-translate-y-0.5"
             >
               How it Works
             </Link>

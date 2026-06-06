@@ -24,11 +24,10 @@ export default function MatchSidebar({ matches, slug }: Props) {
             <Link
               key={m.id}
               href={href}
-              className={`block px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 ${
-                active
-                  ? "bg-primary text-white shadow-md shadow-primary-dim"
-                  : "text-muted hover:text-foreground hover:bg-white/5"
-              }`}
+              className={`block px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 ${active
+                ? "bg-primary text-white shadow-md shadow-primary-dim"
+                : "text-muted hover:text-foreground hover:bg-white/5"
+                }`}
             >
               🎮 {m.name}
             </Link>

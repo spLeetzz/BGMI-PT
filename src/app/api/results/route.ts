@@ -1,7 +1,11 @@
 import { db } from "@/db";
 import { matchResults, playerKills, matches, tournaments, pointsSystems } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { apiError, apiResponse, getPlacementPoints } from "@/lib/utils";
+
+export const dynamic = "force-dynamic";
+
+type KillInput = { player_id: number; kills: number };
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -35,7 +39,7 @@ export async function POST(req: Request) {
       return apiError("match_id, team_id, position required.", 400);
     }
 
-    // get points system for this match's tournament
+    // get points system for this match's tournament (1 query)
     const [match] = await db.select().from(matches).where(eq(matches.id, match_id)).limit(1);
     if (!match) return apiError("Match not found.", 404);
 
@@ -53,7 +57,7 @@ export async function POST(req: Request) {
 
     const placementPoints = ps ? getPlacementPoints(position, ps.rules) : 0;
 
-    // upsert match result
+    // upsert match result (1 query)
     const existing = await db
       .select()
       .from(matchResults)
@@ -76,24 +80,46 @@ export async function POST(req: Request) {
       resultId = inserted.id;
     }
 
-    // upsert player kills
-    if (Array.isArray(kills_per_player)) {
-      for (const entry of kills_per_player) {
-        const { player_id, kills } = entry;
-        const existingKill = await db
-          .select()
-          .from(playerKills)
-          .where(and(eq(playerKills.matchId, match_id), eq(playerKills.playerId, player_id)))
-          .limit(1);
+    // optimized batch upsert player kills
+    if (Array.isArray(kills_per_player) && kills_per_player.length > 0) {
+      const typedKills = kills_per_player as KillInput[];
+      const playerIds = typedKills.map((k) => k.player_id);
 
-        if (existingKill.length > 0) {
-          await db
-            .update(playerKills)
-            .set({ kills })
-            .where(eq(playerKills.id, existingKill[0].id));
+      // fetch existing kills for this match and these players in a single query
+      const existingKills = await db
+        .select()
+        .from(playerKills)
+        .where(
+          and(
+            eq(playerKills.matchId, match_id),
+            inArray(playerKills.playerId, playerIds)
+          )
+        );
+
+      const existingKillsMap = new Map(existingKills.map((ek) => [ek.playerId, ek]));
+
+      const toInsert: typeof playerKills.$inferInsert[] = [];
+      
+      for (const entry of typedKills) {
+        const { player_id, kills } = entry;
+        const ek = existingKillsMap.get(player_id);
+
+        if (ek) {
+          // only run update if value actually changed
+          if (ek.kills !== kills) {
+            await db
+              .update(playerKills)
+              .set({ kills })
+              .where(eq(playerKills.id, ek.id));
+          }
         } else {
-          await db.insert(playerKills).values({ matchId: match_id, playerId: player_id, kills });
+          toInsert.push({ matchId: match_id, playerId: player_id, kills });
         }
+      }
+
+      // batch insert new entries in one query
+      if (toInsert.length > 0) {
+        await db.insert(playerKills).values(toInsert);
       }
     }
 

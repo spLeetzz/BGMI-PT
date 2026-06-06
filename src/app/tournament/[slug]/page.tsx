@@ -45,17 +45,17 @@ export default async function StandingsPage({ params }: Props) {
           .where(inArray(players.teamId, teamIds))
       : [];
 
-  const allResults = await Promise.all(
-    matchList.map((m) =>
-      db.select().from(matchResults).where(eq(matchResults.matchId, m.id))
-    )
-  );
+  const matchIds = matchList.map((m) => m.id);
+  const flatResults = matchIds.length > 0
+    ? await db.select().from(matchResults).where(inArray(matchResults.matchId, matchIds))
+    : [];
 
-  const allKills = await Promise.all(
-    matchList.map((m) =>
-      db.select().from(playerKills).where(eq(playerKills.matchId, m.id))
-    )
-  );
+  const flatKills = matchIds.length > 0
+    ? await db.select().from(playerKills).where(inArray(playerKills.matchId, matchIds))
+    : [];
+
+  const allResults = matchList.map((m) => flatResults.filter((r) => r.matchId === m.id));
+  const allKills = matchList.map((m) => flatKills.filter((k) => k.matchId === m.id));
 
   return (
     <div className="p-8 max-w-7xl mx-auto flex flex-col gap-8">
@@ -110,20 +110,16 @@ export default async function StandingsPage({ params }: Props) {
         </div>
       </div>
 
-      {/* Standings Table container */}
-      <div className="glass-card rounded-2xl border border-border/80 shadow-2xl p-6 overflow-hidden">
-        <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-          📊 Overall Scoreboard
-        </h2>
-        <StandingsTable
-          teams={teamList}
-          matches={matchList}
-          allResults={allResults}
-          allKills={allKills}
-          killPoints={ps?.killPoints ?? 1}
-          allPlayers={allPlayers}
-        />
-      </div>
+      {/* Standings Table */}
+      <StandingsTable
+        tournamentName={tournament.name}
+        teams={teamList}
+        matches={matchList}
+        allResults={allResults}
+        allKills={allKills}
+        killPoints={ps?.killPoints ?? 1}
+        allPlayers={allPlayers}
+      />
     </div>
   );
 }

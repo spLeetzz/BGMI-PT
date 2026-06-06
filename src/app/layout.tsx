@@ -25,6 +25,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </Link>
               <nav className="hidden md:flex items-center gap-6">
                 <Link
+                  href="/tournaments"
+                  className="text-sm font-medium text-muted hover:text-foreground transition-colors"
+                >
+                  Tournaments
+                </Link>
+                <Link
                   href="/points-systems"
                   className="text-sm font-medium text-muted hover:text-foreground transition-colors"
                 >

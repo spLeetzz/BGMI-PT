@@ -32,3 +32,21 @@ export async function PUT(req: Request, { params }: Params) {
     return apiError("Failed to update player.");
   }
 }
+
+export async function DELETE(req: Request, { params }: Params) {
+  const { id } = await params;
+  const playerId = parseInt(id);
+  if (isNaN(playerId)) return apiError("Invalid id.", 400);
+
+  try {
+    const [existing] = await db.select().from(players).where(eq(players.id, playerId)).limit(1);
+    if (!existing) return apiError("Player not found.", 404);
+
+    await db.delete(players).where(eq(players.id, playerId));
+
+    return apiResponse({ deleted: true });
+  } catch (e) {
+    console.error(e);
+    return apiError("Failed to delete player.");
+  }
+}

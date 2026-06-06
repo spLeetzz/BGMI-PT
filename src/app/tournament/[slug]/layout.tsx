@@ -66,6 +66,12 @@ export default async function TournamentLayout({ children, params }: Props) {
                   📥 Upload Roster
                 </Link>
                 <Link
+                  href={`/tournament/${slug}/roster`}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-muted hover:text-foreground hover:bg-white/5 transition-all duration-200"
+                >
+                  👥 Manage Roster
+                </Link>
+                <Link
                   href={`/tournament/${slug}/matches`}
                   className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-muted hover:text-foreground hover:bg-white/5 transition-all duration-200"
                 >

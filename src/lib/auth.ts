@@ -5,6 +5,16 @@ import { eq } from "drizzle-orm";
 
 export async function checkIsAdmin(slug: string): Promise<boolean> {
   try {
+    const cookieStore = await cookies();
+    const cookieToken = cookieStore.get(`admin_token_${slug}`)?.value;
+
+    if (!cookieToken) return false;
+
+    // Super admin: env secret grants access to any tournament
+    const superSecret = process.env.SUPER_ADMIN_SECRET;
+    if (superSecret && cookieToken === superSecret) return true;
+
+    // Tournament-specific admin check
     const [tournament] = await db
       .select()
       .from(tournaments)
@@ -14,9 +24,6 @@ export async function checkIsAdmin(slug: string): Promise<boolean> {
     if (!tournament) return false;
     // If the tournament has no admin token set in DB, allow management (backward compatibility)
     if (!tournament.adminToken) return true;
-
-    const cookieStore = await cookies();
-    const cookieToken = cookieStore.get(`admin_token_${slug}`)?.value;
 
     return cookieToken === tournament.adminToken;
   } catch (e) {
